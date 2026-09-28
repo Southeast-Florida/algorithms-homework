@@ -1,0 +1,142 @@
+# ============================================================
+# Метод прогонки для решения системы с трёхдиагональной матрицей
+# ============================================================
+# Идея: система Ax = F с трёхдиагональной матрицей решается в два этапа.
+# На прямом ходе вычисляются прогоночные коэффициенты (alpha, beta),
+# которые связывают соседние неизвестные: x[i] = alpha[i+1]*x[i+1] + beta[i+1].
+# На обратном ходе, зная x[n-1] = beta[n], последовательно находим все x[i].
+
+import numpy as np
+
+
+def thomas_algorithm(lower, upper, diag, rhs):
+    """
+    lower — поддиагональ (lower[0] не используется),
+    upper — наддиагональ (upper[-1] не используется),
+    diag  — главная диагональ,
+    rhs   — правая часть.
+    """
+    n = diag.size
+
+    alpha = np.zeros(n + 1)
+    beta = np.zeros(n + 1)
+
+    # начальные прогоночные коэффициенты
+    alpha[1] = upper[0] / diag[0]
+    beta[1] = rhs[0] / diag[0]
+
+    # прямой ход
+    for i in range(1, n):
+        denom = diag[i] - lower[i] * alpha[i]
+
+        if i < n - 1:
+            alpha[i + 1] = upper[i] / denom
+
+        beta[i + 1] = (rhs[i] + lower[i] * beta[i]) / denom
+
+    # обратный ход
+    solution = np.zeros(n)
+    solution[n - 1] = beta[n]
+
+    for i in range(n - 2, -1, -1):
+        solution[i] = alpha[i + 1] * solution[i + 1] + beta[i + 1]
+
+    return solution
+
+
+# ----- проверка на тестовой системе -----
+lower_diag = np.array([0.0, 1.0, 1.0])
+upper_diag = np.array([1.0, 1.0, 0.0])
+main_diag = np.array([-2.0, -3.0, -2.0])
+rhs_vec = np.array([-4.0, -9.0, -8.0])
+
+result = thomas_algorithm(lower_diag, upper_diag, main_diag, rhs_vec)
+
+print("Решение методом прогонки:")
+print(result)
+
+
+print("=" * 55)
+
+
+# ============================================================
+# Метод простых итераций
+# ============================================================
+# Систему Ax = b приводим к виду x = Bx + c:
+#   B[i,j] = -A[i,j] / A[i,i]  при i != j,
+#   c[i]   =  b[i]   / A[i,i].
+# Условие сходимости: норма матрицы B должна быть меньше единицы.
+# Итерации повторяются до тех пор, пока максимальное изменение
+# между соседними приближениями не станет меньше заданной точности.
+
+import numpy as np
+
+
+coef_matrix = np.array([
+    [10.0, -1.0, 2.0],
+    [-1.0, 11.0, -1.0],
+    [2.0, -1.0, 10.0]
+])
+
+free_terms = np.array([6.0, 25.0, -11.0])
+
+tolerance = 0.001
+size = free_terms.size
+
+
+# ----- приведение системы к итерационному виду -----
+iter_matrix = np.zeros((size, size))
+const_vec = np.zeros(size)
+
+for i in range(size):
+    const_vec[i] = free_terms[i] / coef_matrix[i, i]
+
+    for j in range(size):
+        if i != j:
+            iter_matrix[i, j] = -coef_matrix[i, j] / coef_matrix[i, i]
+
+
+print("Матрица перехода B:")
+print(iter_matrix)
+
+print("\nСвободный вектор c:")
+print(const_vec)
+
+
+# ----- оценка нормы матрицы перехода -----
+norm_B = 0.0
+
+for i in range(size):
+    row_sum = 0.0
+    for j in range(size):
+        row_sum += abs(iter_matrix[i, j])
+
+    if row_sum > norm_B:
+        norm_B = row_sum
+
+
+print("\nНорма матрицы B:")
+print(norm_B)
+
+
+# ----- итерационный процесс -----
+current_x = const_vec.copy()
+iteration_count = 0
+
+while True:
+    next_x = iter_matrix @ current_x + const_vec
+    iteration_count += 1
+
+    max_change = np.max(np.abs(next_x - current_x))
+
+    if max_change < ((1 - norm_B) / norm_B) * tolerance:
+        break
+
+    current_x = next_x
+
+
+print("\nНайденное решение:")
+print(next_x)
+
+print("\nЧисло итераций:")
+print(iteration_count)
