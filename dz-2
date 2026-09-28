@@ -1,0 +1,158 @@
+import numpy as np
+import time
+
+
+# ------------------------------------------------------------
+# LU-разложение квадратной матрицы A
+# ------------------------------------------------------------
+def make_lu(matrix):
+    size = matrix.shape[0]
+    U = matrix.astype(float).copy()
+    L = np.identity(size)
+
+    for col in range(size - 1):
+        for row in range(col + 1, size):
+            factor = U[row, col] / U[col, col]
+            L[row, col] = factor
+
+            # обновляем строку матрицы U
+            U[row, col:] -= factor * U[col, col:]
+
+    return L, U
+
+
+# ------------------------------------------------------------
+# Решение нижнетреугольной системы Ly = b
+# ------------------------------------------------------------
+def solve_lower(L, rhs):
+    n = rhs.size
+    result = np.zeros(n)
+
+    for i in range(n):
+        acc = 0.0
+        for j in range(i):
+            acc += L[i, j] * result[j]
+        result[i] = (rhs[i] - acc) / L[i, i]
+
+    return result
+
+
+# ------------------------------------------------------------
+# Решение верхнетреугольной системы Ux = y
+# ------------------------------------------------------------
+def solve_upper(U, rhs):
+    n = rhs.size
+    result = np.zeros(n)
+
+    for i in range(n - 1, -1, -1):
+        acc = 0.0
+        for j in range(i + 1, n):
+            acc += U[i, j] * result[j]
+        result[i] = (rhs[i] - acc) / U[i, i]
+
+    return result
+
+
+# ------------------------------------------------------------
+# Решение системы через уже готовое LU-разложение
+# ------------------------------------------------------------
+def solve_with_lu(L, U, rhs):
+    y = solve_lower(L, rhs)
+    x = solve_upper(U, y)
+    return x
+
+
+# ------------------------------------------------------------
+# Классический метод Гаусса с выбором ведущего элемента не нужен,
+# поэтому используем простой вариант без перестановок
+# ------------------------------------------------------------
+def gauss_elimination(matrix, rhs):
+    A = matrix.astype(float).copy()
+    b = rhs.astype(float).copy()
+    n = b.size
+
+    # прямой ход
+    for k in range(n - 1):
+        for i in range(k + 1, n):
+            coeff = A[i, k] / A[k, k]
+            A[i, k:] -= coeff * A[k, k:]
+            b[i] -= coeff * b[k]
+
+    # обратный ход
+    return solve_upper(A, b)
+
+
+# ============================================================
+# Тестовые данные
+# ============================================================
+
+# общая матрица коэффициентов
+matrix_A = np.array([
+    [2.0, 1.0, 1.0],
+    [4.0, 3.0, 3.0],
+    [8.0, 7.0, 9.0]
+])
+
+# несколько вариантов правой части
+right_sides = [
+    np.array([4.0, 10.0, 24.0]),
+    np.array([1.0, 2.0, 3.0]),
+    np.array([3.0, 7.0, 19.0])
+]
+
+
+# ============================================================
+# Замер времени для метода Гаусса
+# ============================================================
+
+t_start = time.perf_counter()
+
+for b_vec in right_sides:
+    gauss_elimination(matrix_A, b_vec)
+
+gauss_time = time.perf_counter() - t_start
+
+
+# ============================================================
+# Замер времени для LU-метода
+# ============================================================
+
+t_start = time.perf_counter()
+
+L_mat, U_mat = make_lu(matrix_A)
+
+lu_results = []
+for b_vec in right_sides:
+    lu_results.append(solve_with_lu(L_mat, U_mat, b_vec))
+
+lu_time = time.perf_counter() - t_start
+
+
+# ============================================================
+# Вывод результатов
+# ============================================================
+
+print("Нижнетреугольная матрица L:")
+print(L_mat)
+
+print("\nВерхнетреугольная матрица U:")
+print(U_mat)
+
+print("\nПроверка: L @ U должно совпадать с исходной A")
+print(L_mat @ U_mat)
+
+
+print("\nНайденные решения для каждого вектора b:")
+for idx, b_vec in enumerate(right_sides, start=1):
+    print(f"\nСистема #{idx}")
+    print("b =", b_vec)
+    print("x =", lu_results[idx - 1])
+
+
+print("\nВремя работы метода Гаусса: {:.6f} с".format(gauss_time))
+print("Время работы LU-метода:     {:.6f} с".format(lu_time))
+
+if lu_time > 0:
+    print("\nУскорение за счёт LU-разложения: {:.2f}x".format(gauss_time / lu_time))
+else:
+    print("\nВремя LU-метода слишком мало для расчёта ускорения.")
