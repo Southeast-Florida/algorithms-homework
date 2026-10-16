@@ -1,0 +1,54 @@
+import math
+
+def f(x, r):
+    """Логистическое отображение."""
+    return r * x * (1.0 - x)
+
+def iterate(r, n_iter, x0=0.5):
+    """Итерируем функцию f n_iter раз, начиная с x0."""
+    x = x0
+    for _ in range(n_iter):
+        x = f(x, r)
+    return x
+
+def find_bifurcation(lo, hi, n_iter, tol=1e-14, max_iter=100):
+    """
+    Ищем точку бифуркации удвоения периода методом деления отрезка пополам.
+    Условие: после n_iter итераций x остаётся по разные стороны от 0.5
+    для левой и правой границы.
+    """
+    for _ in range(max_iter):
+        mid = 0.5 * (lo + hi)
+        x_mid = iterate(mid, n_iter)
+        if x_mid > 0.5:
+            lo = mid
+        else:
+            hi = mid
+        if hi - lo < tol:
+            break
+    return 0.5 * (lo + hi)
+
+# Начальные приближения для параметров бифуркаций
+r_values = [2.0, 1.0 + math.sqrt(5.0)]
+
+# Ищем параметры бифуркаций для n = 2, 3, ..., 8
+for n in range(2, 9):
+    # Границы интервала: предыдущее значение и его продолжение
+    left = r_values[-1]
+    right = left + 0.5 * (r_values[-1] - r_values[-2])
+
+    # Число итераций растёт как 2^n
+    n_iter = 2 ** n
+
+    # Находим точку бифуркации
+    r_bif = find_bifurcation(left, right, n_iter)
+    r_values.append(r_bif)
+
+    # Оценка константы Фейгенбаума по последним трём точкам
+    if len(r_values) >= 3:
+        d = (r_values[-2] - r_values[-3]) / (r_values[-1] - r_values[-2])
+        print(f"n = {n:2d} | r = {r_values[-1]:.8f} | δ ≈ {d:.8f}")
+
+print()
+print(f"Оценка константы Фейгенбаума: δ ≈ {d:.8f}")
+print(f"Теоретическое значение:        δ ≈ 4.66920161")
