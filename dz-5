@@ -1,0 +1,87 @@
+# Исследуем итерации функции phi(x) = mu * sqrt(x) * (1 - nu * sqrt(x)).
+# Для разных (mu, nu):
+#   1) считаем итерации и смотрим, сходится процесс или нет;
+#   2) строим график phi(x) вместе с y = x;
+#   3) строим график x_k по номеру итерации.
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+def phi(x, mu, nu):
+    s = np.sqrt(x)
+    return mu * s * (1 - nu * s)
+
+
+def iterate(mu, nu, x0=0.1, eps=1e-6, max_iter=100):
+    # если x0 < 0, то sqrt сразу не посчитать
+    if x0 < 0:
+        return None, 0, "x0 < 0", []
+
+    x = x0
+    values = [x]
+
+    for k in range(1, max_iter + 1):
+        x_new = phi(x, mu, nu)
+
+        # если ушли в минус, дальше sqrt нельзя
+        if x_new < 0:
+            values.append(x_new)
+            return x_new, k, "вышли из области sqrt", values
+
+        values.append(x_new)
+
+        # проверяем, не сошлось ли
+        if abs(x_new - x) < eps:
+            return x_new, k, "сошлось", values
+
+        x = x_new
+
+    return x, max_iter, "не сошлось", values
+
+
+def plot_phi(mu, nu, xmax=2.0):
+    xs = np.linspace(0, xmax, 400)
+    ys = phi(xs, mu, nu)
+
+    plt.figure(figsize=(8, 5))
+    plt.plot(xs, ys, label='phi(x)')
+    plt.plot(xs, xs, '--', label='y = x')
+    plt.title(f'phi(x), mu={mu}, nu={nu}')
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.grid(True)
+    plt.legend()
+    plt.show()
+
+
+def plot_iterations(values, mu, nu):
+    plt.figure(figsize=(8, 5))
+    plt.plot(range(len(values)), values, marker='o')
+    plt.title(f'Итерации, mu={mu}, nu={nu}')
+    plt.xlabel('k')
+    plt.ylabel('x_k')
+    plt.grid(True)
+    plt.show()
+
+
+# наборы параметров: (mu, nu, x0)
+tests = [
+    (1, 1, 0.1),
+    (1, 2, 0.1),
+    (2, 0.5, 0.1),
+    (1, 3.5, 0.01),
+    (1, 4, 0.1)
+]
+
+for mu, nu, x0 in tests:
+    x, iters, status, values = iterate(mu, nu, x0)
+
+    print("-----------------------------")
+    print(f"mu = {mu}, nu = {nu}, x0 = {x0}")
+    print(f"x* = {x}")
+    print(f"итераций = {iters}")
+    print(f"статус = {status}")
+
+    plot_phi(mu, nu)
+    plot_iterations(values, mu, nu)
